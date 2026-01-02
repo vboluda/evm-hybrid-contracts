@@ -1,0 +1,73 @@
+# =========================
+# Dependencias
+# =========================
+node_modules/
+.pnpm-store/
+
+# =========================
+# Builds / dist
+# =========================
+dist/
+build/
+out/
+coverage/
+
+# Hardhat
+artifacts/
+cache/
+typechain/
+typechain-types/
+
+# =========================
+# Logs
+# =========================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Entornos / secretos
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# IDEs / editores
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# =========================
+# OS
+# =========================
+Thumbs.db
+
+# =========================
+# Monorepo específicos
+# =========================
+packages/**/node_modules/
+packages/**/dist/
+packages/**/build/
+packages/**/out/
+packages/**/coverage/
+
+# =========================
+# Hardhat runtime files (si usas redes locales)
+# =========================
+packages/**/cache/
+packages/**/artifacts/
+
+# =========================
+# Misc
+# =========================
+*.log
