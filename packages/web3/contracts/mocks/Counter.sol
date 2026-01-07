@@ -3,8 +3,14 @@ pragma solidity ^0.8.28;
 
 contract Counter {
   uint public x;
+  bool public initialized;
 
   event Increment(uint by);
+
+  function initialize(uint256 _x) public {
+    require(!initialized, "Counter: already initialized");
+    x = _x;
+  }
 
   function inc() public {
     x++;

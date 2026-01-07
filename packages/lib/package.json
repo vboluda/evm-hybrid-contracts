@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./hardhat": {
+      "types": "./dist/hardhat/index.d.ts",
+      "import": "./dist/hardhat/index.js"
     }
   },
   "scripts": {
@@ -15,7 +19,11 @@
     "dev": "tsc --watch",
     "clean": "rm -rf dist"
   },
+  "peerDependencies": {
+    "hardhat": "^3.1.0"
+  },
   "devDependencies": {
+    "hardhat": "^3.1.0",
     "typescript": "~5.8.0"
   }
 }
