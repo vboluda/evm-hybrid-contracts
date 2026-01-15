@@ -14,8 +14,11 @@
     "ethers": "^6.16.0",
     "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "hardhat": "^3.1.0",
+    "lib": "workspace:*",
     "mocha": "^11.7.5",
-    "typescript": "~5.8.0",
-    "lib": "workspace:*"
+    "typescript": "~5.8.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0"
   }
 }
