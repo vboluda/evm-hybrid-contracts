@@ -36,6 +36,7 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
         RequestState state;           // Current state of the request
         uint256 blockNumber;          // Block number when request was created
         address requester;            // Address that initiated the request
+        uint256 nonce;                // Nonce used to generate this request (for ordering)
         bytes call;                   // The original call data
         string bytecodeLocation;      // IPFS location of the bytecode
         string currentStateLocation;  // IPFS location of the current state
@@ -46,6 +47,20 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
     /// @notice Mapping to store all requests by their ID
     /// @dev Maps requestId to the Request struct containing all request data
     mapping(bytes32 => Request) public requests;
+    
+    /// @notice Tracks minimum pending nonce for each bytecode location
+    /// @dev 0 means no pending requests, otherwise contains the smallest pending nonce
+    mapping(string => uint256) private _minPendingNonceBytecode;
+    
+    /// @notice Tracks minimum pending nonce for each state location
+    /// @dev 0 means no pending requests, otherwise contains the smallest pending nonce
+    mapping(string => uint256) private _minPendingNonceState;
+    
+    /// @notice Maps bytecode location + nonce to requestId for fast lookup
+    mapping(string => mapping(uint256 => bytes32)) private _bytecodeNonceToRequest;
+    
+    /// @notice Maps state location + nonce to requestId for fast lookup
+    mapping(string => mapping(uint256 => bytes32)) private _stateNonceToRequest;
     
     // =============================================================================
     // Modifiers
@@ -99,12 +114,25 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
             state: RequestState.Sent,
             blockNumber: block.number,
             requester: msg.sender,
+            nonce: _nonce,
             call: call,
             bytecodeLocation: bytecodeLocation,
             currentStateLocation: currentStateLocation,
             newStateLocation: "",
             returnData: ""
         });
+        
+        // Register this request for the bytecode location (for serialization control)
+        _bytecodeNonceToRequest[bytecodeLocation][_nonce] = requestId;
+        if (_minPendingNonceBytecode[bytecodeLocation] == 0 || _nonce < _minPendingNonceBytecode[bytecodeLocation]) {
+            _minPendingNonceBytecode[bytecodeLocation] = _nonce;
+        }
+        
+        // Register this request for the state location (for serialization control)
+        _stateNonceToRequest[currentStateLocation][_nonce] = requestId;
+        if (_minPendingNonceState[currentStateLocation] == 0 || _nonce < _minPendingNonceState[currentStateLocation]) {
+            _minPendingNonceState[currentStateLocation] = _nonce;
+        }
         
         // Emit event for off-chain backend to process
         emit OffchainCallSent(
@@ -133,10 +161,45 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
         // Verify that the request exists and is in Sent state
         require(requests[requestId].state == RequestState.Sent, "Invalid request state");
         
+        Request storage currentRequest = requests[requestId];
+        
+        // Verify that no earlier request (lower nonce) for the same bytecode is pending
+        // O(1) check using minimum pending nonce index
+        uint256 minBytecodeNonce = _minPendingNonceBytecode[currentRequest.bytecodeLocation];
+        if (minBytecodeNonce != 0 && minBytecodeNonce < currentRequest.nonce) {
+            revert("Earlier request for same contract is still pending");
+        }
+        
+        // Verify that no earlier request (lower nonce) for the same state is pending
+        // O(1) check using minimum pending nonce index
+        uint256 minStateNonce = _minPendingNonceState[currentRequest.currentStateLocation];
+        if (minStateNonce != 0 && minStateNonce < currentRequest.nonce) {
+            revert("Earlier request for same state is still pending");
+        }
+        
         // Update request state to Completed
         requests[requestId].state = RequestState.Completed;
         requests[requestId].newStateLocation = newStateLocation;
         requests[requestId].returnData = returnData;
+        
+        // Update minimum pending nonce indices if this was the minimum
+        // NOTE: This is O(k) where k is the gap to the next pending nonce, but only happens
+        //       once per sequence when completing the minimum nonce request
+        if (_minPendingNonceBytecode[currentRequest.bytecodeLocation] == currentRequest.nonce) {
+            _minPendingNonceBytecode[currentRequest.bytecodeLocation] = _findNextPendingNonce(
+                currentRequest.bytecodeLocation,
+                currentRequest.nonce,
+                true  // bytecode mapping
+            );
+        }
+        
+        if (_minPendingNonceState[currentRequest.currentStateLocation] == currentRequest.nonce) {
+            _minPendingNonceState[currentRequest.currentStateLocation] = _findNextPendingNonce(
+                currentRequest.currentStateLocation,
+                currentRequest.nonce,
+                false  // state mapping
+            );
+        }
         
         // Emit event confirming the reply
         emit OffchainCallReplied(requestId, block.number, newStateLocation);
@@ -221,6 +284,78 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
      */
     function getRequestBlock(bytes32 requestId) external view returns (uint256) {
         return requests[requestId].blockNumber;
+    }
+    
+    /**
+     * @notice Checks if a request can be processed (no earlier requests pending for same contract or state)
+     * @dev Used by backend to verify if a request can be executed in parallel
+     *      Two requests on the same offchain contract OR same state must be executed serially by nonce order
+     * @param requestId The request ID to check
+     * @return canProcess True if the request can be processed now, false if must wait
+     * @return blockingRequestId The ID of the blocking request (if any), or bytes32(0) if none
+     */
+    function canProcessRequest(bytes32 requestId) external view returns (bool canProcess, bytes32 blockingRequestId) {
+        Request memory currentRequest = requests[requestId];
+        require(currentRequest.state != RequestState.None, "Request does not exist");
+        
+        // If already completed, return true
+        if (currentRequest.state == RequestState.Completed) {
+            return (true, bytes32(0));
+        }
+        
+        // Check if any earlier request (lower nonce) for the same bytecode is still pending
+        // O(1) check using minimum pending nonce index
+        uint256 minBytecodeNonce = _minPendingNonceBytecode[currentRequest.bytecodeLocation];
+        if (minBytecodeNonce != 0 && minBytecodeNonce < currentRequest.nonce) {
+            bytes32 blockingReqId = _bytecodeNonceToRequest[currentRequest.bytecodeLocation][minBytecodeNonce];
+            return (false, blockingReqId);
+        }
+        
+        // Check if any earlier request (lower nonce) for the same state is still pending
+        // O(1) check using minimum pending nonce index
+        uint256 minStateNonce = _minPendingNonceState[currentRequest.currentStateLocation];
+        if (minStateNonce != 0 && minStateNonce < currentRequest.nonce) {
+            bytes32 blockingReqId = _stateNonceToRequest[currentRequest.currentStateLocation][minStateNonce];
+            return (false, blockingReqId);
+        }
+        
+        // No blocking requests found
+        return (true, bytes32(0));
+    }
+    
+    // =============================================================================
+    // Internal Helper Functions
+    // =============================================================================
+    
+    /**
+     * @notice Finds the next pending nonce after the current one for a given location
+     * @dev Searches forward from currentNonce+1 up to _nonce to find next Sent request
+     *      Complexity: O(k) where k is the gap until the next pending request
+     *      This only executes once per sequence when completing the minimum nonce request
+     * @param location The bytecode or state location string
+     * @param currentNonce The nonce that was just completed
+     * @param isBytecode True if searching bytecode mapping, false for state mapping
+     * @return Next pending nonce, or 0 if none found
+     */
+    function _findNextPendingNonce(
+        string memory location,
+        uint256 currentNonce,
+        bool isBytecode
+    ) private view returns (uint256) {
+        // Search for next pending request starting from currentNonce + 1
+        for (uint256 nextNonce = currentNonce + 1; nextNonce <= _nonce; nextNonce++) {
+            bytes32 nextRequestId = isBytecode 
+                ? _bytecodeNonceToRequest[location][nextNonce]
+                : _stateNonceToRequest[location][nextNonce];
+            
+            // If there's a request at this nonce and it's still pending
+            if (nextRequestId != bytes32(0) && requests[nextRequestId].state == RequestState.Sent) {
+                return nextNonce;
+            }
+        }
+        
+        // No pending requests found
+        return 0;
     }
     
     // =============================================================================
