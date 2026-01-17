@@ -23,6 +23,9 @@ importers:
         specifier: ^5.4.0
         version: 5.4.0
     devDependencies:
+      '@nomicfoundation/hardhat-chai-matchers':
+        specifier: ^2.1.0
+        version: 2.1.0(@nomicfoundation/hardhat-ethers@4.0.3(hardhat@3.1.0))(chai@5.3.3)(ethers@6.16.0)(hardhat@3.1.0)
       '@nomicfoundation/hardhat-ethers':
         specifier: ^4.0.3
         version: 4.0.3(hardhat@3.1.0)
@@ -350,6 +353,14 @@ packages:
     resolution: {integrity: sha512-Y8Kwqd5JpBmI/Kst6NJ/bZ81FeJea9J6WEwoSRTZnEvwfqW9dk9PI8zJs2UJpOACL1fXEPvN+doETbxT9EhwXA==}
     engines: {node: '>= 20'}
 
+  '@nomicfoundation/hardhat-chai-matchers@2.1.0':
+    resolution: {integrity: sha512-GPhBNafh1fCnVD9Y7BYvoLnblnvfcq3j8YDbO1gGe/1nOFWzGmV7gFu5DkwFXF+IpYsS+t96o9qc/mPu3V3Vfw==}
+    peerDependencies:
+      '@nomicfoundation/hardhat-ethers': ^3.1.0
+      chai: ^4.2.0
+      ethers: ^6.14.0
+      hardhat: ^2.26.0
+
   '@nomicfoundation/hardhat-errors@3.0.6':
     resolution: {integrity: sha512-3x+OVdZv7Rgy3z6os9pB6kiHLxs6q0PCXHRu+WLZflr44PG9zW+7V9o+ehrUqmmivlHcIFr3Qh4M2wZVuoCYww==}
 
@@ -510,6 +521,9 @@ packages:
       typechain: ^8.3.2
       typescript: '>=4.7.0'
 
+  '@types/chai-as-promised@7.1.8':
+    resolution: {integrity: sha512-ThlRVIJhr69FLlh6IctTXFkmhtP3NpMZ2QGq69StYLyKZFp/HOp1VdKZj7RvfNWYYcJ1xlbLGLLWj1UvP5u/Gw==}
+
   '@types/chai-as-promised@8.0.2':
     resolution: {integrity: sha512-meQ1wDr1K5KRCSvG2lX7n7/5wf70BeptTKst0axGvnN6zqaVpRqegoIbugiAPSqOW9K9aL8gDVrm7a2LXOtn2Q==}
 
@@ -603,6 +617,11 @@ packages:
     resolution: {integrity: sha512-3Cco8XQhi27DogSp9Ri6LYNZLi/TBY/JVnDe+mj06NkBjW/ZYOtekaEU4wZ4xcRMNrFkDv8KNtOAqHyDfz3lYg==}
     engines: {node: '>=18.7'}
 
+  chai-as-promised@7.1.2:
+    resolution: {integrity: sha512-aBDHZxRzYnUYuIAIPBH2s511DjlKPzXNlXSGFC8CwmroWQLfrW0LtE1nK3MAwwNhJPa9raEjNCmRoFpG0Hurdw==}
+    peerDependencies:
+      chai: '>= 2.1.2 < 6'
+
   chai-as-promised@8.0.2:
     resolution: {integrity: sha512-1GadL+sEJVLzDjcawPM4kjfnL+p/9vrxiEUonowKOAzvVg0PixJUdtuDzdkDeQhK3zfOE76GqGkZIQ7/Adcrqw==}
     peerDependencies:
@@ -623,6 +642,9 @@ packages:
   chalk@5.6.2:
     resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
+
+  check-error@1.0.3:
+    resolution: {integrity: sha512-iKEoDYaRmd1mxM90a2OEfWhjsjPpYPuQ+lMYsoxB126+t8fw7ySEO48nmDg5COTjxDI65/Y2OWpeEHk3ZOe8zg==}
 
   check-error@2.1.1:
     resolution: {integrity: sha512-OAlb+T7V4Op9OwdkjmguYRqncdlx5JiofwOAUkmTF+jNdHwzTaTs4sRAGpzLF3oOz5xAyDGrPgeIDFQmDOTiJw==}
@@ -676,6 +698,10 @@ packages:
   decamelize@4.0.0:
     resolution: {integrity: sha512-9iE1PgSik9HeIIw2JO94IidnE3eBoQrFJ3w7sFuzSX4DpmZ3v5sZpUiV5Swcf6mQEF+Y0ru8Neo+p+nyh2J+hQ==}
     engines: {node: '>=10'}
+
+  deep-eql@4.1.4:
+    resolution: {integrity: sha512-SUwdGfqdKOwxCPeVYjwSyRpJ7Z+fhpwIAtmCUdZIWZ/YP5R9WAsyuSgpLVDi9bjWoN2LXHNss/dk3urXtdQxGg==}
+    engines: {node: '>=6'}
 
   deep-eql@5.0.2:
     resolution: {integrity: sha512-h5k/5U50IJJFpzfL6nO9jaaumfjO/f2NjK/oYB2Djzm4p9L+3T9qWpZqZ2hAbLPuuYq9wrU08WQyBTL5GbPk5Q==}
@@ -772,6 +798,9 @@ packages:
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
     engines: {node: 6.* || 8.* || >= 10.*}
+
+  get-func-name@2.0.2:
+    resolution: {integrity: sha512-8vXOvuE167CtIc3OyItco7N/dpRtBbYOsPsXCz7X/PMnlGjYjSGuZJgM1Y7mmew7BKf9BqvLX2tnOVy1BBUsxQ==}
 
   get-tsconfig@4.13.0:
     resolution: {integrity: sha512-1VKTZJCwBrvbd+Wn3AOgQP/2Av+TfTCOlE4AcRJE72W1ksZXbAx8PPBR9RzgTeSPzlPMHrbANMH3LbltH73wxQ==}
@@ -936,6 +965,9 @@ packages:
 
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
+
+  ordinal@1.0.3:
+    resolution: {integrity: sha512-cMddMgb2QElm8G7vdaa02jhUNbTSrhsgAGUz1OokD83uJTwSUn+nKoNoKVVaRa08yF6sgfO7Maou1+bgLd9rdQ==}
 
   p-limit@3.1.0:
     resolution: {integrity: sha512-TYOanM3wGwNGsZN2cVTYPArw454xnXj5qmWF1bEoAc4+cU/ol7GVh7odevjp1FNHduHc3KZMcFduxU5Xc6uJRQ==}
@@ -1103,6 +1135,10 @@ packages:
     resolution: {integrity: sha512-5C1sg4USs1lfG0GFb2RLXsdpXqBSEhAaA/0kPL01wxzpMqLILNxIxIOKiILz+cdg/pLnOUxFYOR5yhHU666wbw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
+
+  type-detect@4.1.0:
+    resolution: {integrity: sha512-Acylog8/luQ8L7il+geoSxhEkazvkslg7PSNKOX59mbB9cOveP5aq9h74Y7YU8yDpJwetzQQrfIwtf4Wp4LKcw==}
+    engines: {node: '>=4'}
 
   typechain@8.3.2:
     resolution: {integrity: sha512-x/sQYr5w9K7yv3es7jo4KTX05CLxOf7TRWwoHlrjRh8H82G64g+k7VuWPJlgMo6qrjfCulOdfBjiaDtmhFYD/Q==}
@@ -1478,6 +1514,17 @@ snapshots:
       '@nomicfoundation/edr-linux-x64-musl': 0.12.0-next.17
       '@nomicfoundation/edr-win32-x64-msvc': 0.12.0-next.17
 
+  '@nomicfoundation/hardhat-chai-matchers@2.1.0(@nomicfoundation/hardhat-ethers@4.0.3(hardhat@3.1.0))(chai@5.3.3)(ethers@6.16.0)(hardhat@3.1.0)':
+    dependencies:
+      '@nomicfoundation/hardhat-ethers': 4.0.3(hardhat@3.1.0)
+      '@types/chai-as-promised': 7.1.8
+      chai: 5.3.3
+      chai-as-promised: 7.1.2(chai@5.3.3)
+      deep-eql: 4.1.4
+      ethers: 6.16.0
+      hardhat: 3.1.0
+      ordinal: 1.0.3
+
   '@nomicfoundation/hardhat-errors@3.0.6':
     dependencies:
       '@nomicfoundation/hardhat-utils': 3.0.5
@@ -1730,6 +1777,10 @@ snapshots:
       typechain: 8.3.2(typescript@5.8.3)
       typescript: 5.8.3
 
+  '@types/chai-as-promised@7.1.8':
+    dependencies:
+      '@types/chai': 4.3.20
+
   '@types/chai-as-promised@8.0.2':
     dependencies:
       '@types/chai': 4.3.20
@@ -1799,6 +1850,11 @@ snapshots:
 
   cbor2@1.12.0: {}
 
+  chai-as-promised@7.1.2(chai@5.3.3):
+    dependencies:
+      chai: 5.3.3
+      check-error: 1.0.3
+
   chai-as-promised@8.0.2(chai@5.3.3):
     dependencies:
       chai: 5.3.3
@@ -1824,6 +1880,10 @@ snapshots:
       supports-color: 7.2.0
 
   chalk@5.6.2: {}
+
+  check-error@1.0.3:
+    dependencies:
+      get-func-name: 2.0.2
 
   check-error@2.1.1: {}
 
@@ -1878,6 +1938,10 @@ snapshots:
       supports-color: 8.1.1
 
   decamelize@4.0.0: {}
+
+  deep-eql@4.1.4:
+    dependencies:
+      type-detect: 4.1.0
 
   deep-eql@5.0.2: {}
 
@@ -1995,6 +2059,8 @@ snapshots:
     optional: true
 
   get-caller-file@2.0.5: {}
+
+  get-func-name@2.0.2: {}
 
   get-tsconfig@4.13.0:
     dependencies:
@@ -2191,6 +2257,8 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
+  ordinal@1.0.3: {}
+
   p-limit@3.1.0:
     dependencies:
       yocto-queue: 0.1.0
@@ -2339,6 +2407,8 @@ snapshots:
       get-tsconfig: 4.13.0
     optionalDependencies:
       fsevents: 2.3.3
+
+  type-detect@4.1.0: {}
 
   typechain@8.3.2(typescript@5.8.3):
     dependencies:

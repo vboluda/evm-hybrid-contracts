@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.28;
 
 /**
  * @title IBasicHybridCoordinator
@@ -48,5 +49,4 @@ interface IBasicHybridCoordinator {
      * @param returnData The return value from the executed contract call (encoded bytes)
      */
     function replyOffchainCall(bytes32 requestId, bytes calldata newStateLocation, bytes calldata returnData) external;
-}
 }
