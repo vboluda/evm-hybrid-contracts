@@ -2,25 +2,36 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./interfaces/IBasicHybridCoordinator.sol";
-import "./interfaces/IWhiteList.sol";
 import {FIFOBytes32} from "./queue/Queue.sol";
 
 /**
  * @title BasicHybridCoordinator
  * @author Vicente Boluda Vias
- * @notice Coordinates hybrid on-chain/off-chain contract execution with whitelist management
- * @dev Implements both IBasicHybridCoordinator and IWhiteList interfaces
- *      Uses OpenZeppelin's Ownable for ownership management
+ * @notice Coordinates hybrid on-chain/off-chain contract execution with RBAC management
+ * @dev Implements IBasicHybridCoordinator interface
+ *      Uses OpenZeppelin's AccessControl for role-based access control
+ *      Role-based access control with 3 roles: DEFAULT_ADMIN_ROLE, CONSUMER_ROLE, PROCESSOR_ROLE
  *      KNOWN LIMITATION: Requests are processed sequentially in the order they are sent.
  *                        Future versions may implement parallel processing with dependency tracking. 
  */
-contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList {
+contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
 
     using FIFOBytes32 for FIFOBytes32.Queue;
     FIFOBytes32.Queue private globalQueue;
 
     error errorFulfillingOutOfOrder(bytes32 requestId);
+    
+    // =============================================================================
+    // Role Definitions
+    // =============================================================================
+    
+    /// @notice Role identifier for consumers who can send off-chain call requests
+    bytes32 public constant CONSUMER_ROLE = keccak256("CONSUMER_ROLE");
+    
+    /// @notice Role identifier for processors who can reply to off-chain call requests
+    bytes32 public constant PROCESSOR_ROLE = keccak256("PROCESSOR_ROLE");
 
     // =============================================================================
     // State Variables
@@ -28,9 +39,6 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
     
     /// @notice Counter for generating unique request IDs (nonces)
     uint256 private _nonce;
-    
-    /// @notice Mapping to track whitelisted addresses
-    mapping(address => bool) private _whitelist;
     
     /// @notice Enum representing the lifecycle states of an off-chain request
     enum RequestState {
@@ -56,29 +64,23 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
     /// @dev Maps requestId to the Request struct containing all request data
     mapping(bytes32 => Request) public requests;
     
-    // =============================================================================
-    // Modifiers
-    // =============================================================================
+    // Note: Using OpenZeppelin's AccessControl modifiers:
+    // - onlyRole(DEFAULT_ADMIN_ROLE) for admin functions
+    // - onlyRole(CONSUMER_ROLE) for consumer functions
+    // - onlyRole(PROCESSOR_ROLE) for processor functions
     
-    /**
-     * @notice Restricts function access to whitelisted addresses only
-     */
-    modifier onlyWhitelisted() {
-        require(_whitelist[msg.sender], "Caller not whitelisted");
-        _;
-    }
     
     // =============================================================================
     // Constructor
     // =============================================================================
     
     /**
-     * @notice Initializes the contract and sets the specified address as owner
-     * @dev Automatically adds the initial owner to the whitelist
-     * @param initialOwner The address that will be set as the contract owner
+     * @notice Initializes the contract and sets the specified address as admin
+     * @dev Automatically grants DEFAULT_ADMIN_ROLE to the initial owner
+     * @param initialOwner The address that will be set as the contract admin
      */
-    constructor(address initialOwner) Ownable(initialOwner) {
-        // EMPTY
+    constructor(address initialOwner) {
+        _grantRole(DEFAULT_ADMIN_ROLE, initialOwner);
     }
     
     // =============================================================================
@@ -88,7 +90,7 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
     /**
      * @notice Initiates an off-chain contract execution request
      * @dev Generates a unique nonce (requestId) and emits OffchainCallSent event
-     *      Only whitelisted addresses can send off-chain calls
+     *      Only addresses with CONSUMER_ROLE can send off-chain calls
      * @param call The encoded function call to execute on the external contract
      * @param bytecodeLocation IPFS hash or URI reference to the bytecode
      * @param currentStateLocation IPFS hash or URI reference to the current state
@@ -98,7 +100,7 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
         bytes calldata call,
         string calldata bytecodeLocation,
         string calldata currentStateLocation
-    ) external onlyWhitelisted returns (bytes32 requestId) {
+    ) external onlyRole(CONSUMER_ROLE) returns (bytes32 requestId) {
         // Generate unique request ID
         _nonce++;
         requestId = keccak256(abi.encodePacked(block.number, msg.sender, _nonce));
@@ -133,7 +135,7 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
     
     /**
      * @notice Callback function invoked by the backend after completing off-chain execution
-     * @dev Only whitelisted backend servers can reply to requests
+     * @dev Only addresses with PROCESSOR_ROLE can reply to requests
      * @param requestId The unique identifier of the request being responded to
      * @param newStateLocation IPFS hash or URI reference to the new state after execution
      * @param returnData The return value from the executed contract call
@@ -142,7 +144,7 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
         bytes32 requestId,
         bytes calldata newStateLocation,
         bytes calldata returnData
-    ) external onlyWhitelisted {
+    ) external onlyRole(PROCESSOR_ROLE) {
         // Verify that the request exists and is in Sent state
         require(requests[requestId].state == RequestState.Sent, "Invalid request state");
         
@@ -175,42 +177,16 @@ contract BasicHybridCoordinator is Ownable, IBasicHybridCoordinator, IWhiteList 
     }
     
     // =============================================================================
-    // IWhiteList Implementation
+    // Role Management
     // =============================================================================
     
-    /**
-     * @notice Adds an address to the whitelist
-     * @dev Only the owner can add addresses to the whitelist
-     * @param account The address to add to the whitelist
-     */
-    function addToWhitelist(address account) external onlyOwner {
-        require(account != address(0), "Cannot whitelist zero address");
-        require(!_whitelist[account], "Already whitelisted");
-        
-        _whitelist[account] = true;
-        emit AddressWhitelisted(account, msg.sender);
-    }
-    
-    /**
-     * @notice Removes an address from the whitelist
-     * @dev Only the owner can remove addresses from the whitelist
-     * @param account The address to remove from the whitelist
-     */
-    function removeFromWhitelist(address account) external onlyOwner {
-        require(_whitelist[account], "Not whitelisted");
-        
-        _whitelist[account] = false;
-        emit AddressRemovedFromWhitelist(account, msg.sender);
-    }
-    
-    /**
-     * @notice Checks if an address is whitelisted
-     * @param account The address to check
-     * @return bool True if the address is whitelisted, false otherwise
-     */
-    function isWhitelisted(address account) external view returns (bool) {
-        return _whitelist[account];
-    }
+    // Note: Role management is handled by OpenZeppelin's AccessControl contract
+    // Available functions:
+    // - grantRole(bytes32 role, address account) - only DEFAULT_ADMIN_ROLE
+    // - revokeRole(bytes32 role, address account) - only DEFAULT_ADMIN_ROLE
+    // - renounceRole(bytes32 role, address account) - account can renounce their own role
+    // - hasRole(bytes32 role, address account) - check if account has role
+    // - getRoleAdmin(bytes32 role) - get admin role for a given role
     
     // =============================================================================
     // Additional Helper Functions
