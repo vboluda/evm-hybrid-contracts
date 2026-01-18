@@ -25,6 +25,11 @@ library FIFOBytes32 {
     }
 
     /// @notice Adds a value to the end of the queue.
+    /// @dev
+    ///  - This queue performs an automatic index reset when it becomes empty.
+    ///  - When the last element is dequeued, both `head` and `tail` are reset to zero.
+    ///  - As a consequence, indices are NOT monotonically increasing over time.
+    ///  - This behavior optimizes long-term index growth at the cost of index continuity.
     /// @param q The queue storage reference.
     /// @param value The bytes32 value to enqueue.
     function enqueue(Queue storage q, bytes32 value) internal {
@@ -37,9 +42,18 @@ library FIFOBytes32 {
     /// @return value The dequeued bytes32 value.
     function dequeue(Queue storage q) internal returns (bytes32 value) {
         uint256 h = q.head;
-        if (h == q.tail) revert QueueEmpty();
+        uint256 t = q.tail;
+        if (h == t) revert QueueEmpty();
         value = q.data[h];
-        unchecked { q.head = h + 1; }
+        unchecked { h = h + 1; }
+
+        //If the queue is empty, reset indices to zero to avoid excessive growth over time
+        if (h == t) {
+            q.head = 0;
+            q.tail = 0;
+        }else{
+            q.head = h;
+        }
     }
 
     /// @notice Returns the first value in the queue without removing it.

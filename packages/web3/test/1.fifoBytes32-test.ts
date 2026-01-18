@@ -107,30 +107,50 @@ describe("FIFOBytes32 TEST", function () {
         expect(await h.length()).to.equal(0n);
     });
 
-    it("resetIfEmpty() resets indices only when empty", async () => {
+    it("dequeue() auto-resets indices when queue becomes empty", async () => {
         await h.enqueue(b32(1));
         await h.enqueue(b32(2));
         await h.dequeue();
-        await h.dequeue();
-
+        
+        // After one dequeue, indices should not be reset yet
         let [head, tail] = await h.indices();
-        expect(head).to.equal(2n);
+        expect(head).to.equal(1n);
         expect(tail).to.equal(2n);
 
+        // After second dequeue that empties the queue, indices should auto-reset to (0, 0)
+        await h.dequeue();
+        [head, tail] = await h.indices();
+        expect(head).to.equal(0n);
+        expect(tail).to.equal(0n);
+
+        // Enqueue after auto-reset should start from 0
+        await h.enqueue(b32(7));
+        const [head2, tail2] = await h.indices();
+        expect(head2).to.equal(0n);
+        expect(tail2).to.equal(1n);
+    });
+
+    it("resetIfEmpty() still works independently when needed", async () => {
+        await h.enqueue(b32(1));
+        await h.dequeue();
+        
+        // Indices are already (0, 0) due to auto-reset
+        let [head, tail] = await h.indices();
+        expect(head).to.equal(0n);
+        expect(tail).to.equal(0n);
+
+        // resetIfEmpty should be idempotent
         await h.resetIfEmpty();
         [head, tail] = await h.indices();
         expect(head).to.equal(0n);
         expect(tail).to.equal(0n);
 
-        await h.enqueue(b32(7));
+        // When queue is not empty, resetIfEmpty should do nothing
+        await h.enqueue(b32(5));
+        await h.resetIfEmpty();
         const [head2, tail2] = await h.indices();
         expect(head2).to.equal(0n);
         expect(tail2).to.equal(1n);
-
-        await h.resetIfEmpty();
-        const [head3, tail3] = await h.indices();
-        expect(head3).to.equal(head2);
-        expect(tail3).to.equal(tail2);
     });
 
     it(`long deterministic sequence matches a JS reference model [${LONG_DETERMINISTIC_ITERATIONS} iterations]`, async () => {
