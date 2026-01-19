@@ -26,7 +26,7 @@ interface IBasicHybridCoordinator {
      * @param block Block number at which the reply was received
      * @param newStateLocation Reference to the updated state of the contract after execution
      */
-    event OffchainCallReplied(bytes32 indexed requestId, uint256 block, bytes newStateLocation);
+    event OffchainCallReplied(bytes32 indexed requestId, uint256 block, string newStateLocation);
     
     /**
      * @notice Initiates an off-chain contract execution request
@@ -48,5 +48,5 @@ interface IBasicHybridCoordinator {
      * @param newStateLocation IPFS hash or URI reference to the new state snapshot after execution
      * @param returnData The return value from the executed contract call (encoded bytes)
      */
-    function replyOffchainCall(bytes32 requestId, bytes calldata newStateLocation, bytes calldata returnData) external;
+    function replyOffchainCall(bytes32 requestId, string calldata newStateLocation, string calldata returnData) external;
 }

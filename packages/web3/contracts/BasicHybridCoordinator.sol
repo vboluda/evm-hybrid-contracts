@@ -3,7 +3,9 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "./interfaces/IBasicHybridCoordinator.sol";
+import "./interfaces/IResponseOffchainCallConsumer.sol";
 import {FIFOBytes32} from "./queue/Queue.sol";
 
 /**
@@ -22,6 +24,7 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
     FIFOBytes32.Queue private globalQueue;
 
     error errorFulfillingOutOfOrder(bytes32 requestId);
+    error ConsumerDoesNotSupportInterface(address consumer);
     
     // =============================================================================
     // Role Definitions
@@ -56,8 +59,8 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
         bytes call;                   // The original call data
         string bytecodeLocation;      // IPFS location of the bytecode
         string currentStateLocation;  // IPFS location of the current state
-        bytes newStateLocation;       // IPFS location of the new state (after completion)
-        bytes returnData;             // Return data from the execution
+        string newStateLocation;       // IPFS location of the new state (after completion)
+        string returnData;             // Return data from the execution
     }
     
     /// @notice Mapping to store all requests by their ID
@@ -101,6 +104,11 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
         string calldata bytecodeLocation,
         string calldata currentStateLocation
     ) external onlyRole(CONSUMER_ROLE) returns (bytes32 requestId) {
+        // Verify that the consumer implements IResponseOffchainCallConsumer using EIP-165
+        if (!IERC165(msg.sender).supportsInterface(type(IResponseOffchainCallConsumer).interfaceId)) {
+            revert ConsumerDoesNotSupportInterface(msg.sender);
+        }
+        
         // Generate unique request ID
         _nonce++;
         requestId = keccak256(abi.encodePacked(block.number, msg.sender, _nonce));
@@ -142,8 +150,8 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
      */
     function replyOffchainCall(
         bytes32 requestId,
-        bytes calldata newStateLocation,
-        bytes calldata returnData
+        string calldata newStateLocation,
+        string calldata returnData
     ) external onlyRole(PROCESSOR_ROLE) {
         // Verify that the request exists and is in Sent state
         require(requests[requestId].state == RequestState.Sent, "Invalid request state");
@@ -156,12 +164,18 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
       
         globalQueue.dequeue();
         currentRequest.state = RequestState.Completed;
+        currentRequest.newStateLocation = newStateLocation;
+        currentRequest.returnData = returnData;
         
         // Emit event confirming the reply
         emit OffchainCallReplied(requestId, block.number, newStateLocation);
         
-        // TODO: Implement callback mechanism to notify the original caller
-        // TODO: Handle returnData processing and forwarding
+        // Call the consumer's callback function
+        IResponseOffchainCallConsumer(currentRequest.requester).onOffchainCallResponse(
+            requestId,
+            newStateLocation,
+            returnData
+        );
     }
 
     /**
