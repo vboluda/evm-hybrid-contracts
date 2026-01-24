@@ -101,14 +101,16 @@ describe("BasicHybridCoordinator TEST", function () {
             const receipt = await (await tx).wait();
             const blockNumber = receipt!.blockNumber;
             
+
             // Get the requestId from nextRequest
             const requestId = await coordinator.nextRequest();
             expect(requestId).to.not.equal(zeroPadValue("0x00", 32));
+
             
             // Verify event was emitted with correct arguments
             await expect(tx)
                 .to.emit(coordinator, "OffchainCallSent")
-                .withArgs(requestId, blockNumber, callData, BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
+                .withArgs(requestId, await consumer.getAddress(), blockNumber, callData, BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
         });
 
         it("emits OffchainCallSent event with correct parameters", async () => {
@@ -126,7 +128,7 @@ describe("BasicHybridCoordinator TEST", function () {
             
             await expect(tx)
                 .to.emit(coordinator, "OffchainCallSent")
-                .withArgs(requestId, blockNumber, callData, BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
+                .withArgs(requestId, await consumer.getAddress(), blockNumber, callData, BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
         });
 
         it("generates unique request IDs for different requests", async () => {

@@ -18,7 +18,7 @@ interface IBasicHybridCoordinator {
      * @param bytecodeLocation Reference to the bytecode of the contract on which the call will be executed
      * @param currentStateLocation Reference to the current state of the contract before execution
      */
-    event OffchainCallSent(bytes32 indexed requestId, uint256 block, bytes call, string bytecodeLocation, string currentStateLocation);
+    event OffchainCallSent(bytes32 indexed requestId, address caller, uint256 block, bytes call, string bytecodeLocation, string currentStateLocation);
     
     /**
      * @notice Emitted when the off-chain execution is complete and the response is received

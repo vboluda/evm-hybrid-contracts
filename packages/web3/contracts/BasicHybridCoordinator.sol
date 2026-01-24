@@ -41,7 +41,7 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
     // =============================================================================
     
     /// @notice Counter for generating unique request IDs (nonces)
-    uint256 private _nonce;
+    uint256 public _nonce;
     
     /// @notice Enum representing the lifecycle states of an off-chain request
     enum RequestState {
@@ -132,6 +132,7 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
         // Emit event for off-chain backend to process
         emit OffchainCallSent(
             requestId,
+            msg.sender,
             block.number,
             call,
             bytecodeLocation,
