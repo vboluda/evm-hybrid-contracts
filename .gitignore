@@ -39,15 +39,6 @@ pnpm-debug.log*
 *.tsbuildinfo
 
 # =========================
-# IDEs / editores
-# =========================
-.vscode/
-.idea/
-*.swp
-*.swo
-.DS_Store
-
-# =========================
 # OS
 # =========================
 Thumbs.db
