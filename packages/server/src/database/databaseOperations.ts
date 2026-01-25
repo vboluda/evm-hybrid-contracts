@@ -33,10 +33,10 @@ export class databaseOperations extends PostgresClientManager {
   }
 
 
-   /**
-   * Bootstrap DB schema (incremental + idempotent).
-   * Safe to run on every app start.
-   */
+  /**
+  * Bootstrap DB schema (incremental + idempotent).
+  * Safe to run on every app start.
+  */
   async bootstrap(): Promise<void> {
     const c = await this.client();
     try {
@@ -73,27 +73,28 @@ CREATE TABLE IF NOT EXISTS offchain_calls (
 );
       `.trim());
 
-      // 3) Incremental ALTERs (safe on existing installs)
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS request_id CHAR(66);`);
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS caller CHAR(42);`);
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS block_number BIGINT;`);
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS block_timestamp TIMESTAMPTZ;`);
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS call_data TEXT;`);
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS bytecode_location TEXT;`);
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS current_state_location TEXT;`);
+      console.log('[DB Bootstrap] Enum and base table structure verified');
 
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS status offchain_call_status;`);
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ;`);
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS output_message TEXT;`);
+      // 3) Add new columns for future features (transaction and event tracking)
+      await c.query(`
+      ALTER TABLE offchain_calls
+          ADD COLUMN IF NOT EXISTS transaction_hash CHAR(66);
+      `);
 
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ;`);
-      await c.query(`ALTER TABLE offchain_calls ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;`);
+      await c.query(`
+      ALTER TABLE offchain_calls
+          ADD COLUMN IF NOT EXISTS event_hash CHAR(66);
+      `);
+
+      console.log('[DB Bootstrap] Additional columns added (transaction_hash, event_hash)');
 
       // 4) Defaults (safe to repeat)
       await c.query(`ALTER TABLE offchain_calls ALTER COLUMN status SET DEFAULT 'registered';`);
       await c.query(`ALTER TABLE offchain_calls ALTER COLUMN status_updated_at SET DEFAULT NOW();`);
       await c.query(`ALTER TABLE offchain_calls ALTER COLUMN created_at SET DEFAULT NOW();`);
       await c.query(`ALTER TABLE offchain_calls ALTER COLUMN updated_at SET DEFAULT NOW();`);
+
+      console.log('[DB Bootstrap] Column defaults configured');
 
       // 5) NOT NULLs (only if currently nullable)
       await c.query(`
@@ -143,8 +144,15 @@ BEGIN
              WHERE table_name='offchain_calls' AND column_name='status_updated_at' AND is_nullable='YES') THEN
     ALTER TABLE offchain_calls ALTER COLUMN status_updated_at SET NOT NULL;
   END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name='offchain_calls' AND column_name='event_hash' AND is_nullable='YES') THEN
+    ALTER TABLE offchain_calls ALTER COLUMN event_hash SET NOT NULL;
+  END IF;
 END$$;
       `.trim());
+
+      console.log('[DB Bootstrap] NOT NULL constraints applied');
 
       // 6) PK (idempotent)
       await c.query(`
@@ -156,6 +164,8 @@ BEGIN
   END IF;
 END$$;
       `.trim());
+
+      console.log('[DB Bootstrap] Primary key constraint verified');
 
       // 7) Format checks (idempotent)
       // - request_id: ^0x[0-9a-fA-F]{64}$
@@ -184,6 +194,8 @@ BEGIN
 END$$;
       `.trim());
 
+      console.log('[DB Bootstrap] Format validation constraints verified');
+
       // 8) Indexes (idempotent)
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_status_idx ON offchain_calls(status);`);
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_block_number_idx ON offchain_calls(block_number);`);
@@ -191,9 +203,23 @@ END$$;
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_caller_idx ON offchain_calls(caller);`);
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_created_at_idx ON offchain_calls(created_at);`);
 
+      console.log('[DB Bootstrap] Performance indexes created');
+
+      // 9) Unique index for event_hash (ensures no duplicate events)
+      await c.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS offchain_calls_event_hash_uniq
+      ON offchain_calls(event_hash);
+      `);
+
+      console.log('[DB Bootstrap] Unique constraints verified');
+
       await c.query("COMMIT");
+      console.log('[DB Bootstrap] Schema bootstrap completed successfully');
     } catch (e) {
-      try { await c.query("ROLLBACK"); } catch {}
+      console.error('[DB Bootstrap] Error during schema setup, rolling back:', e);
+      try { await c.query("ROLLBACK"); } catch (rbErr) {
+        console.error('[DB Bootstrap] Rollback failed:', rbErr);
+      }
       throw e;
     } finally {
       c.release();
