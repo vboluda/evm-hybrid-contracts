@@ -1,5 +1,5 @@
 // index.ts
-import { PostgresClientManager } from "./database";
+import { databaseOperations } from "./database";
 
 /**
  * Application entry point.
@@ -12,7 +12,7 @@ import { PostgresClientManager } from "./database";
  * Domain bootstrap and event handling will be added later.
  */
 async function main(): Promise<void> {
-  const db = new PostgresClientManager();
+  const db = new databaseOperations();
 
   try {
     await db.connect();
@@ -52,6 +52,16 @@ async function main(): Promise<void> {
     console.error("💥 Unhandled promise rejection", reason);
     await shutdown("unhandledRejection");
   });
+
+
+  // Database bootstrap
+  try {
+    await db.bootstrap();
+    console.log("✅ Database schema bootstrap completed");
+  } catch (err) {
+    console.error("❌ Database schema bootstrap failed", err);
+    process.exit(1);
+  }
 }
 
 // Execute application
