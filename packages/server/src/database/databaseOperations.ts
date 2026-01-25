@@ -1,6 +1,7 @@
-// PostgresDb.ts
+// databaseOperations.ts
 import type { Pool, PoolClient } from "pg";
 import { PostgresClientManager, type EnvLike } from "./databaseConnection";
+import { solidityPackedKeccak256 } from "ethers";
 
 /**
  * Base class for DB operations on top of PostgresClientManager.
@@ -56,17 +57,18 @@ END$$;
       await c.query(`
 CREATE TABLE IF NOT EXISTS offchain_calls (
   request_id              CHAR(66) NOT NULL, -- 0x + 64 hex
-  caller                  CHAR(42) NOT NULL, -- 0x + 40 hex
-  block_number            BIGINT NOT NULL,
-  block_timestamp         TIMESTAMPTZ NOT NULL,
-
+  caller                  CHAR(42) NOT NULL, -- 0x + 40 hex (address)
+  block                   BIGINT NOT NULL,   -- block from event
   call_data               TEXT NOT NULL,     -- 0x... (variable length)
   bytecode_location       TEXT NOT NULL,
   current_state_location  TEXT NOT NULL,
+  
+  transaction_hash        CHAR(66),          -- 0x + 64 hex
+  block_number            BIGINT NOT NULL,   -- actual block number
+  block_timestamp         TIMESTAMPTZ NOT NULL,
 
   status                  offchain_call_status NOT NULL DEFAULT 'registered',
-  status_updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  output_message          TEXT NULL,
+  status_updated_at       BIGINT NOT NULL,
 
   created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -75,28 +77,14 @@ CREATE TABLE IF NOT EXISTS offchain_calls (
 
       console.log('[DB Bootstrap] Enum and base table structure verified');
 
-      // 3) Add new columns for future features (transaction and event tracking)
-      await c.query(`
-      ALTER TABLE offchain_calls
-          ADD COLUMN IF NOT EXISTS transaction_hash CHAR(66);
-      `);
-
-      await c.query(`
-      ALTER TABLE offchain_calls
-          ADD COLUMN IF NOT EXISTS event_hash CHAR(66);
-      `);
-
-      console.log('[DB Bootstrap] Additional columns added (transaction_hash, event_hash)');
-
-      // 4) Defaults (safe to repeat)
+      // 3) Defaults (safe to repeat)
       await c.query(`ALTER TABLE offchain_calls ALTER COLUMN status SET DEFAULT 'registered';`);
-      await c.query(`ALTER TABLE offchain_calls ALTER COLUMN status_updated_at SET DEFAULT NOW();`);
       await c.query(`ALTER TABLE offchain_calls ALTER COLUMN created_at SET DEFAULT NOW();`);
       await c.query(`ALTER TABLE offchain_calls ALTER COLUMN updated_at SET DEFAULT NOW();`);
 
       console.log('[DB Bootstrap] Column defaults configured');
 
-      // 5) NOT NULLs (only if currently nullable)
+      // 4) NOT NULLs (only if currently nullable)
       await c.query(`
 DO $$
 BEGIN
@@ -111,13 +99,8 @@ BEGIN
   END IF;
 
   IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_name='offchain_calls' AND column_name='block_number' AND is_nullable='YES') THEN
-    ALTER TABLE offchain_calls ALTER COLUMN block_number SET NOT NULL;
-  END IF;
-
-  IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_name='offchain_calls' AND column_name='block_timestamp' AND is_nullable='YES') THEN
-    ALTER TABLE offchain_calls ALTER COLUMN block_timestamp SET NOT NULL;
+             WHERE table_name='offchain_calls' AND column_name='block' AND is_nullable='YES') THEN
+    ALTER TABLE offchain_calls ALTER COLUMN block SET NOT NULL;
   END IF;
 
   IF EXISTS (SELECT 1 FROM information_schema.columns
@@ -136,6 +119,16 @@ BEGIN
   END IF;
 
   IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name='offchain_calls' AND column_name='block_number' AND is_nullable='YES') THEN
+    ALTER TABLE offchain_calls ALTER COLUMN block_number SET NOT NULL;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name='offchain_calls' AND column_name='block_timestamp' AND is_nullable='YES') THEN
+    ALTER TABLE offchain_calls ALTER COLUMN block_timestamp SET NOT NULL;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns
              WHERE table_name='offchain_calls' AND column_name='status' AND is_nullable='YES') THEN
     ALTER TABLE offchain_calls ALTER COLUMN status SET NOT NULL;
   END IF;
@@ -144,17 +137,12 @@ BEGIN
              WHERE table_name='offchain_calls' AND column_name='status_updated_at' AND is_nullable='YES') THEN
     ALTER TABLE offchain_calls ALTER COLUMN status_updated_at SET NOT NULL;
   END IF;
-
-  IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_name='offchain_calls' AND column_name='event_hash' AND is_nullable='YES') THEN
-    ALTER TABLE offchain_calls ALTER COLUMN event_hash SET NOT NULL;
-  END IF;
 END$$;
       `.trim());
 
       console.log('[DB Bootstrap] NOT NULL constraints applied');
 
-      // 6) PK (idempotent)
+      // 5) PK (idempotent)
       await c.query(`
 DO $$
 BEGIN
@@ -167,10 +155,7 @@ END$$;
 
       console.log('[DB Bootstrap] Primary key constraint verified');
 
-      // 7) Format checks (idempotent)
-      // - request_id: ^0x[0-9a-fA-F]{64}$
-      // - caller:     ^0x[0-9a-fA-F]{40}$
-      // - call_data:  ^0x[0-9a-fA-F]*$  (permitimos vacío => "0x")
+      // 6) Format checks (idempotent)
       await c.query(`
 DO $$
 BEGIN
@@ -196,22 +181,14 @@ END$$;
 
       console.log('[DB Bootstrap] Format validation constraints verified');
 
-      // 8) Indexes (idempotent)
+      // 7) Indexes (idempotent)
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_status_idx ON offchain_calls(status);`);
+      await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_caller_idx ON offchain_calls(caller);`);
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_block_number_idx ON offchain_calls(block_number);`);
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_block_timestamp_idx ON offchain_calls(block_timestamp);`);
-      await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_caller_idx ON offchain_calls(caller);`);
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_created_at_idx ON offchain_calls(created_at);`);
 
       console.log('[DB Bootstrap] Performance indexes created');
-
-      // 9) Unique index for event_hash (ensures no duplicate events)
-      await c.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS offchain_calls_event_hash_uniq
-      ON offchain_calls(event_hash);
-      `);
-
-      console.log('[DB Bootstrap] Unique constraints verified');
 
       await c.query("COMMIT");
       console.log('[DB Bootstrap] Schema bootstrap completed successfully');
@@ -221,6 +198,109 @@ END$$;
         console.error('[DB Bootstrap] Rollback failed:', rbErr);
       }
       throw e;
+    } finally {
+      c.release();
+    }
+  }
+
+  async insertOffchainCall(
+    requestId: `0x${string}`,        // bytes32 hex
+    caller: `0x${string}`,           // address
+    block: bigint | number,          // uint256 from event
+    call: string,                    // bytes (call data)
+    bytecodeLocation: string,
+    currentStateLocation: string,
+    blockNumber: bigint | number,    // actual block number
+    blockTimestamp: bigint | number, // ethereum block timestamp (seconds)
+    txHash: `0x${string}`            // bytes32 hex
+  ): Promise<void> {
+    // unix seconds "now"
+    const statusUpdatedAt = Math.floor(Date.now() / 1000);
+
+    const c = await this.client();
+    try {
+      await c.query(
+        `
+        INSERT INTO offchain_calls (
+          request_id,
+          caller,
+          block,
+          call_data,
+          bytecode_location,
+          current_state_location,
+          transaction_hash,
+          block_number,
+          block_timestamp,
+          status,
+          status_updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, to_timestamp($9), $10, $11
+        );
+        `,
+        [
+          requestId,
+          caller,
+          block.toString(),
+          call,
+          bytecodeLocation,
+          currentStateLocation,
+          txHash,
+          blockNumber.toString(),
+          blockTimestamp.toString(), // seconds -> to_timestamp()
+          'registered', // status
+          statusUpdatedAt,
+        ]
+      );
+    } catch (e: any) {
+      // Postgres unique_violation = 23505 (duplicate request_id)
+      if (e?.code === "23505" && e?.constraint === "offchain_calls_pkey") {
+        console.warn(
+          `[db] insertOffchainCall: duplicate request_id (ignored). requestId=${requestId}`
+        );
+        return;
+      }
+
+      // Any other error is thrown
+      throw e;
+    } finally {
+      c.release();
+    }
+  }
+
+  async getAllOffchainCalls(
+    statusFilter?: 'registered' | 'running' | 'processed' | 'error' | null
+  ): Promise<any[]> {
+    const c = await this.client();
+    try {
+      let query = `
+        SELECT 
+          request_id,
+          caller,
+          block,
+          call_data,
+          bytecode_location,
+          current_state_location,
+          transaction_hash,
+          block_number,
+          block_timestamp,
+          status,
+          status_updated_at,
+          created_at,
+          updated_at
+        FROM offchain_calls
+      `;
+      
+      const params: any[] = [];
+      
+      if (statusFilter) {
+        query += ` WHERE status = $1`;
+        params.push(statusFilter);
+      }
+      
+      query += ` ORDER BY created_at DESC`;
+      
+      const result = await c.query(query, params);
+      return result.rows;
     } finally {
       c.release();
     }

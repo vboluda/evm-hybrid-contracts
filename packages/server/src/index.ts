@@ -58,11 +58,26 @@ async function main(): Promise<void> {
   try {
     await db.bootstrap();
     console.log("✅ Database schema bootstrap completed");
+    await db.insertOffchainCall(
+      '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcde3', // requestId
+      '0x2bf1BBFa2BBC07e47290385936AB27a0c697fB5B', // caller (address)
+      12345n, // block (from event)
+      '0xFABADACAFEAAAAAAAAAAAAAAAAAAAAAAAAAAaa', // call (bytes - call data)
+      'ipfs://QmExampleBytecodeHash123456789', // bytecodeLocation
+      'ipfs://QmExampleStateHash123456789ABC', // currentStateLocation
+      12345678n, // blockNumber (actual block number)
+      1737820800n, // blockTimestamp (unix timestamp en segundos)
+      '0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321' // txHash
+    );
+    console.log("✅ Sample offchain call inserted");
+    const allCalls = await db.getAllOffchainCalls();
+    console.log("📋 All offchain calls:", allCalls);
   } catch (err) {
     console.error("❌ Database schema bootstrap failed", err);
     process.exit(1);
   }
 }
+
 
 // Execute application
 main().catch((err) => {
