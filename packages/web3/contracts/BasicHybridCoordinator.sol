@@ -41,7 +41,7 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
     // =============================================================================
     
     /// @notice Counter for generating unique request IDs (nonces)
-    uint256 public _nonce;
+    uint256 public nonce;
     
     /// @notice Enum representing the lifecycle states of an off-chain request
     enum RequestState {
@@ -110,15 +110,15 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
         }
         
         // Generate unique request ID
-        _nonce++;
-        requestId = keccak256(abi.encodePacked(block.number, msg.sender, _nonce));
+        nonce++;
+        requestId = keccak256(abi.encodePacked(block.number, msg.sender, nonce));
         
         // Create and store the new request with Sent state
         requests[requestId] = Request({
             state: RequestState.Sent,
             blockNumber: block.number,
             requester: msg.sender,
-            nonce: _nonce,
+            nonce: nonce,
             call: call,
             bytecodeLocation: bytecodeLocation,
             currentStateLocation: currentStateLocation,
@@ -132,6 +132,7 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
         // Emit event for off-chain backend to process
         emit OffchainCallSent(
             requestId,
+            nonce,
             msg.sender,
             block.number,
             call,
