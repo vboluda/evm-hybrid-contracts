@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS offchain_calls (
   call_data               TEXT NOT NULL,     -- 0x... (variable length)
   bytecode_location       TEXT NOT NULL,
   current_state_location  TEXT NOT NULL,
+  nonce                   NUMERIC(78, 0) NOT NULL, -- uint256 (max 78 digits)
   
   transaction_hash        CHAR(66),          -- 0x + 64 hex
   block_number            BIGINT NOT NULL,   -- actual block number
@@ -137,6 +138,11 @@ BEGIN
              WHERE table_name='offchain_calls' AND column_name='status_updated_at' AND is_nullable='YES') THEN
     ALTER TABLE offchain_calls ALTER COLUMN status_updated_at SET NOT NULL;
   END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name='offchain_calls' AND column_name='nonce' AND is_nullable='YES') THEN
+    ALTER TABLE offchain_calls ALTER COLUMN nonce SET NOT NULL;
+  END IF;
 END$$;
       `.trim());
 
@@ -181,6 +187,19 @@ END$$;
 
       console.log('[DB Bootstrap] Format validation constraints verified');
 
+      // 6.5) Unique constraint for nonce (idempotent)
+      await c.query(`
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='offchain_calls_nonce_unique') THEN
+    ALTER TABLE offchain_calls
+      ADD CONSTRAINT offchain_calls_nonce_unique UNIQUE (nonce);
+  END IF;
+END$$;
+      `.trim());
+
+      console.log('[DB Bootstrap] Nonce unique constraint verified');
+
       // 7) Indexes (idempotent)
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_status_idx ON offchain_calls(status);`);
       await c.query(`CREATE INDEX IF NOT EXISTS offchain_calls_caller_idx ON offchain_calls(caller);`);
@@ -210,6 +229,7 @@ END$$;
     call: string,                    // bytes (call data)
     bytecodeLocation: string,
     currentStateLocation: string,
+    nonce: bigint | number,          // uint256 nonce
     blockNumber: bigint | number,    // actual block number
     blockTimestamp: bigint | number, // ethereum block timestamp (seconds)
     txHash: `0x${string}`            // bytes32 hex
@@ -228,13 +248,14 @@ END$$;
           call_data,
           bytecode_location,
           current_state_location,
+          nonce,
           transaction_hash,
           block_number,
           block_timestamp,
           status,
           status_updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, to_timestamp($9), $10, $11
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, to_timestamp($10), $11, $12
         );
         `,
         [
@@ -244,6 +265,7 @@ END$$;
           call,
           bytecodeLocation,
           currentStateLocation,
+          nonce.toString(),
           txHash,
           blockNumber.toString(),
           blockTimestamp.toString(), // seconds -> to_timestamp()
@@ -252,12 +274,20 @@ END$$;
         ]
       );
     } catch (e: any) {
-      // Postgres unique_violation = 23505 (duplicate request_id)
-      if (e?.code === "23505" && e?.constraint === "offchain_calls_pkey") {
-        console.warn(
-          `[db] insertOffchainCall: duplicate request_id (ignored). requestId=${requestId}`
-        );
-        return;
+      // Postgres unique_violation = 23505
+      if (e?.code === "23505") {
+        if (e?.constraint === "offchain_calls_pkey") {
+          console.warn(
+            `[db] insertOffchainCall: duplicate request_id (ignored). requestId=${requestId}`
+          );
+          return;
+        }
+        if (e?.constraint === "offchain_calls_nonce_unique") {
+          console.warn(
+            `[db] insertOffchainCall: duplicate nonce (ignored). nonce=${nonce}`
+          );
+          return;
+        }
       }
 
       // Any other error is thrown
@@ -280,6 +310,7 @@ END$$;
           call_data,
           bytecode_location,
           current_state_location,
+          nonce,
           transaction_hash,
           block_number,
           block_timestamp,
@@ -297,7 +328,7 @@ END$$;
         params.push(statusFilter);
       }
       
-      query += ` ORDER BY created_at DESC`;
+      query += ` ORDER BY nonce DESC`;
       
       const result = await c.query(query, params);
       return result.rows;
