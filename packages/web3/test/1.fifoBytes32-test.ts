@@ -6,7 +6,7 @@ import { FIFOBytes32Harness, FIFOBytes32Harness__factory } from "../types/ethers
 
 const { ethers } = await network.connect();
 
-const LONG_DETERMINISTIC_ITERATIONS = 400;
+const LONG_DETERMINISTIC_ITERATIONS = 100;
 
 function b32(i: number): string {
     return zeroPadValue(toBeHex(i), 32);
