@@ -87,10 +87,12 @@ abstract contract ResponseOffchainCallConsumerBase is IResponseOffchainCallConsu
      * @return requestId Unique identifier for tracking this request
      */
     function sendOffchainRequest(
-        bytes calldata call
+        bytes calldata call,
+        address sender
     ) internal virtual returns (bytes32 requestId){
         IBasicHybridCoordinator coordinator = IBasicHybridCoordinator(coordinatorAddress);
         requestId = coordinator.sendOffchainCall(
+            sender,
             call,
             bytecodeLocation,
             currentStateLocation);

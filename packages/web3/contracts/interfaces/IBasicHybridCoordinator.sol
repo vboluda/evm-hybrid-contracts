@@ -18,7 +18,7 @@ interface IBasicHybridCoordinator {
      * @param bytecodeLocation Reference to the bytecode of the contract on which the call will be executed
      * @param currentStateLocation Reference to the current state of the contract before execution
      */
-    event OffchainCallSent(bytes32 indexed requestId, uint256 nonce, address caller, uint256 block, bytes call, string bytecodeLocation, string currentStateLocation);
+    event OffchainCallSent(bytes32 indexed requestId, uint256 nonce, address caller, address sender, uint256 block, bytes call, string bytecodeLocation, string currentStateLocation);
     
     /**
      * @notice Emitted when the off-chain execution is complete and the response is received
@@ -32,13 +32,14 @@ interface IBasicHybridCoordinator {
      * @notice Initiates an off-chain contract execution request
      * @dev Generates a unique nonce (requestId) and emits OffchainCallSent event.
      *      The backend monitors this event and processes the request off-chain.
+     * @param sender The address that has invoke the onchain contract (msg.sender)
      * @param call The encoded function call to execute on the external contract (bytecode format)
      *        Example: transfer(address recipient, uint256 amount) encoded as bytes
      * @param bytecodeLocation IPFS hash or URI reference to the bytecode of the contract to be executed
      * @param currentStateLocation IPFS hash or URI reference to the current state snapshot of the contract
      * @return requestId Unique identifier for tracking this request through its lifecycle
      */
-    function sendOffchainCall(bytes calldata call, string calldata bytecodeLocation, string calldata currentStateLocation) external returns (bytes32 requestId);
+    function sendOffchainCall(address sender, bytes calldata call, string calldata bytecodeLocation, string calldata currentStateLocation) external returns (bytes32 requestId);
 
     /**
      * @notice Callback function invoked by the backend server after completing off-chain execution

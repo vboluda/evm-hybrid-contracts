@@ -111,7 +111,7 @@ describe("BasicHybridCoordinator TEST", function () {
             // Verify event was emitted with correct arguments
             await expect(tx)
                 .to.emit(coordinator, "OffchainCallSent")
-                .withArgs(requestId, nonce, await consumer.getAddress(), blockNumber, callData, BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
+                .withArgs(requestId, nonce, await consumer.getAddress(), await deployer.getAddress(), blockNumber, callData, BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
         });
 
         it("emits OffchainCallSent event with correct parameters", async () => {
@@ -130,7 +130,7 @@ describe("BasicHybridCoordinator TEST", function () {
             
             await expect(tx)
                 .to.emit(coordinator, "OffchainCallSent")
-                .withArgs(requestId, nonce, await consumer.getAddress(), blockNumber, callData, BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
+                .withArgs(requestId, nonce, await consumer.getAddress(), await deployer.getAddress(), blockNumber, callData, BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
         });
 
         it("generates unique request IDs for different requests", async () => {
@@ -156,6 +156,7 @@ describe("BasicHybridCoordinator TEST", function () {
             // Try to call sendOffchainCall directly from unauthorized account
             await expect(
                 coordinator.connect(unauthorizedAccount).sendOffchainCall(
+                    unauthorizedAccount.address,
                     "0x1234",
                     BYTECODE_LOCATION,
                     CURRENT_STATE_LOCATION
@@ -171,6 +172,7 @@ describe("BasicHybridCoordinator TEST", function () {
             // EOA cannot implement interfaces, so calling supportsInterface will fail with a generic error
             await expect(
                 coordinator.connect(consumerAccount).sendOffchainCall(
+                    consumerAccount.address,
                     "0x1234",
                     BYTECODE_LOCATION,
                     CURRENT_STATE_LOCATION

@@ -100,6 +100,7 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
      * @return requestId Unique identifier for tracking this request
      */
     function sendOffchainCall(
+        address sender,
         bytes calldata call,
         string calldata bytecodeLocation,
         string calldata currentStateLocation
@@ -134,6 +135,7 @@ contract BasicHybridCoordinator is AccessControl, IBasicHybridCoordinator {
             requestId,
             nonce,
             msg.sender,
+            sender,
             block.number,
             call,
             bytecodeLocation,
