@@ -58,6 +58,7 @@ END$$;
 CREATE TABLE IF NOT EXISTS offchain_calls (
   request_id              CHAR(66) NOT NULL, -- 0x + 64 hex
   caller                  CHAR(42) NOT NULL, -- 0x + 40 hex (address)
+  sender                  CHAR(42) NOT NULL, -- 0x + 40 hex (address)
   block                   BIGINT NOT NULL,   -- block from event
   call_data               TEXT NOT NULL,     -- 0x... (variable length)
   bytecode_location       TEXT NOT NULL,
@@ -78,6 +79,20 @@ CREATE TABLE IF NOT EXISTS offchain_calls (
 
       console.log('[DB Bootstrap] Enum and base table structure verified');
 
+      // 2.5) Add sender column if it doesn't exist (migration for existing tables)
+      await c.query(`
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='offchain_calls' AND column_name='sender') THEN
+    ALTER TABLE offchain_calls ADD COLUMN sender CHAR(42);
+    RAISE NOTICE 'Column sender added to offchain_calls table';
+  END IF;
+END$$;
+      `.trim());
+
+      console.log('[DB Bootstrap] Column migrations applied');
+
       // 3) Defaults (safe to repeat)
       await c.query(`ALTER TABLE offchain_calls ALTER COLUMN status SET DEFAULT 'registered';`);
       await c.query(`ALTER TABLE offchain_calls ALTER COLUMN created_at SET DEFAULT NOW();`);
@@ -97,6 +112,11 @@ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns
              WHERE table_name='offchain_calls' AND column_name='caller' AND is_nullable='YES') THEN
     ALTER TABLE offchain_calls ALTER COLUMN caller SET NOT NULL;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name='offchain_calls' AND column_name='sender' AND is_nullable='YES') THEN
+    ALTER TABLE offchain_calls ALTER COLUMN sender SET NOT NULL;
   END IF;
 
   IF EXISTS (SELECT 1 FROM information_schema.columns
@@ -177,6 +197,12 @@ BEGIN
       CHECK (caller ~ '^0x[0-9a-fA-F]{40}$');
   END IF;
 
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='offchain_calls_sender_fmt_chk') THEN
+    ALTER TABLE offchain_calls
+      ADD CONSTRAINT offchain_calls_sender_fmt_chk
+      CHECK (sender ~ '^0x[0-9a-fA-F]{40}$');
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='offchain_calls_call_data_fmt_chk') THEN
     ALTER TABLE offchain_calls
       ADD CONSTRAINT offchain_calls_call_data_fmt_chk
@@ -225,6 +251,7 @@ END$$;
   async insertOffchainCall(
     requestId: `0x${string}`,        // bytes32 hex
     caller: `0x${string}`,           // address
+    sender: `0x${string}`,           // address
     block: bigint | number,          // uint256 from event
     call: string,                    // bytes (call data)
     bytecodeLocation: string,
@@ -244,6 +271,7 @@ END$$;
         INSERT INTO offchain_calls (
           request_id,
           caller,
+          sender,
           block,
           call_data,
           bytecode_location,
@@ -255,12 +283,13 @@ END$$;
           status,
           status_updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, to_timestamp($10), $11, $12
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, to_timestamp($11), $12, $13
         );
         `,
         [
           requestId,
           caller,
+          sender,
           block.toString(),
           call,
           bytecodeLocation,
@@ -306,6 +335,7 @@ END$$;
         SELECT 
           request_id,
           caller,
+          sender,
           block,
           call_data,
           bytecode_location,

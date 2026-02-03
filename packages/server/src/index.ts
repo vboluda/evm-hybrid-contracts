@@ -61,6 +61,7 @@ async function main(): Promise<void> {
     await db.insertOffchainCall(
       '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcde6', // requestId
       '0x2bf1BBFa2BBC07e47290385936AB27a0c697fB5B', // caller (address)
+      '0x1234567890123456789012345678901234567890', // sender (address)
       12345n, // block (from event)
       '0xFABADACAFEAAAAAAAAAAAAAAAAAAAAAAAAAAaa', // call (bytes - call data)
       'ipfs://QmExampleBytecodeHash123456789', // bytecodeLocation
