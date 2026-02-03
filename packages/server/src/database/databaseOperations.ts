@@ -88,6 +88,24 @@ BEGIN
     ALTER TABLE offchain_calls ADD COLUMN sender CHAR(42);
     RAISE NOTICE 'Column sender added to offchain_calls table';
   END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='offchain_calls' AND column_name='new_state_location') THEN
+    ALTER TABLE offchain_calls ADD COLUMN new_state_location TEXT;
+    RAISE NOTICE 'Column new_state_location added to offchain_calls table';
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='offchain_calls' AND column_name='return_data') THEN
+    ALTER TABLE offchain_calls ADD COLUMN return_data TEXT;
+    RAISE NOTICE 'Column return_data added to offchain_calls table';
+  END IF;
+  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                 WHERE table_name='offchain_calls' AND column_name='error_message') THEN
+    ALTER TABLE offchain_calls ADD COLUMN error_message TEXT;
+    RAISE NOTICE 'Column error_message added to offchain_calls table';
+  END IF;
 END$$;
       `.trim());
 
@@ -346,6 +364,9 @@ END$$;
           block_timestamp,
           status,
           status_updated_at,
+          new_state_location,
+          return_data,
+          error_message,
           created_at,
           updated_at
         FROM offchain_calls
@@ -362,6 +383,144 @@ END$$;
       
       const result = await c.query(query, params);
       return result.rows;
+    } finally {
+      c.release();
+    }
+  }
+
+  /**
+   * Update offchain call with reply data from replyOffchainCall
+   */
+  async updateOffchainCallReply(
+    requestId: `0x${string}`,
+    newStateLocation: string,
+    returnData: string
+  ): Promise<void> {
+    const statusUpdatedAt = Math.floor(Date.now() / 1000);
+    
+    const c = await this.client();
+    try {
+      await c.query(
+        `
+        UPDATE offchain_calls
+        SET 
+          new_state_location = $1,
+          return_data = $2,
+          status = 'processed',
+          status_updated_at = $3,
+          updated_at = NOW()
+        WHERE request_id = $4
+        `,
+        [newStateLocation, returnData, statusUpdatedAt, requestId]
+      );
+    } finally {
+      c.release();
+    }
+  }
+
+  /**
+   * Update offchain call status to 'running' by request_id
+   */
+  async updateStatusToRunningByRequestId(
+    requestId: `0x${string}`
+  ): Promise<void> {
+    const statusUpdatedAt = Math.floor(Date.now() / 1000);
+    
+    const c = await this.client();
+    try {
+      await c.query(
+        `
+        UPDATE offchain_calls
+        SET 
+          status = 'running',
+          status_updated_at = $1,
+          updated_at = NOW()
+        WHERE request_id = $2
+        `,
+        [statusUpdatedAt, requestId]
+      );
+    } finally {
+      c.release();
+    }
+  }
+
+  /**
+   * Update offchain call status to 'running' by nonce
+   */
+  async updateStatusToRunningByNonce(
+    nonce: bigint | number
+  ): Promise<void> {
+    const statusUpdatedAt = Math.floor(Date.now() / 1000);
+    
+    const c = await this.client();
+    try {
+      await c.query(
+        `
+        UPDATE offchain_calls
+        SET 
+          status = 'running',
+          status_updated_at = $1,
+          updated_at = NOW()
+        WHERE nonce = $2
+        `,
+        [statusUpdatedAt, nonce.toString()]
+      );
+    } finally {
+      c.release();
+    }
+  }
+
+  /**
+   * Update offchain call status to 'error' with error message by request_id
+   */
+  async updateStatusToErrorByRequestId(
+    requestId: `0x${string}`,
+    errorMessage: string
+  ): Promise<void> {
+    const statusUpdatedAt = Math.floor(Date.now() / 1000);
+    
+    const c = await this.client();
+    try {
+      await c.query(
+        `
+        UPDATE offchain_calls
+        SET 
+          status = 'error',
+          error_message = $1,
+          status_updated_at = $2,
+          updated_at = NOW()
+        WHERE request_id = $3
+        `,
+        [errorMessage, statusUpdatedAt, requestId]
+      );
+    } finally {
+      c.release();
+    }
+  }
+
+  /**
+   * Update offchain call status to 'error' with error message by nonce
+   */
+  async updateStatusToErrorByNonce(
+    nonce: bigint | number,
+    errorMessage: string
+  ): Promise<void> {
+    const statusUpdatedAt = Math.floor(Date.now() / 1000);
+    
+    const c = await this.client();
+    try {
+      await c.query(
+        `
+        UPDATE offchain_calls
+        SET 
+          status = 'error',
+          error_message = $1,
+          status_updated_at = $2,
+          updated_at = NOW()
+        WHERE nonce = $3
+        `,
+        [errorMessage, statusUpdatedAt, nonce.toString()]
+      );
     } finally {
       c.release();
     }
