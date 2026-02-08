@@ -4,6 +4,55 @@ import { PostgresClientManager, type EnvLike } from "./databaseConnection";
 import { solidityPackedKeccak256 } from "ethers";
 
 /**
+ * Interface for database operations (excludes bootstrap method)
+ */
+export interface IDatabaseOperations {
+  connect(env?: EnvLike): Promise<void>;
+  
+  insertOffchainCall(
+    requestId: `0x${string}`,
+    caller: `0x${string}`,
+    sender: `0x${string}`,
+    block: bigint | number,
+    call: string,
+    bytecodeLocation: string,
+    currentStateLocation: string,
+    nonce: bigint | number,
+    blockNumber: bigint | number,
+    blockTimestamp: bigint | number,
+    txHash: `0x${string}`
+  ): Promise<void>;
+  
+  getAllOffchainCalls(
+    statusFilter?: 'registered' | 'running' | 'processed' | 'error' | null
+  ): Promise<any[]>;
+  
+  updateOffchainCallReply(
+    requestId: `0x${string}`,
+    newStateLocation: string,
+    returnData: string
+  ): Promise<void>;
+  
+  updateStatusToRunningByRequestId(
+    requestId: `0x${string}`
+  ): Promise<void>;
+  
+  updateStatusToRunningByNonce(
+    nonce: bigint | number
+  ): Promise<void>;
+  
+  updateStatusToErrorByRequestId(
+    requestId: `0x${string}`,
+    errorMessage: string
+  ): Promise<void>;
+  
+  updateStatusToErrorByNonce(
+    nonce: bigint | number,
+    errorMessage: string
+  ): Promise<void>;
+}
+
+/**
  * Base class for DB operations on top of PostgresClientManager.
  *
  * Responsibilities (for later):
@@ -12,7 +61,7 @@ import { solidityPackedKeccak256 } from "ethers";
  *
  * For now: only extends the connection manager without adding behavior.
  */
-export class databaseOperations extends PostgresClientManager {
+export class databaseOperations extends PostgresClientManager implements IDatabaseOperations {
   /**
    * Optional convenience re-export: lets callers do db.connect() like before.
    * (No behavior change; just here if you want to keep usage symmetrical.)
