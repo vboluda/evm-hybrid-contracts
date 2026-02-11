@@ -3,6 +3,7 @@
 import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
 import type { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-verify";
 
 // In HH2, tasks are registered when their modules are imported
 //import "lib/hardhat";
@@ -31,6 +32,24 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
     },
+  },
+
+  etherscan: {
+    apiKey: {
+      hoodi: process.env.ETHERSCAN_API_KEY!,
+    },
+    customChains: [
+      {
+        network: "hoodi",
+        chainId: 560048,
+        urls: {
+          // Etherscan API V2 (multichain)
+          apiURL: "https://api.etherscan.io/v2/api?chainid=560048",
+          // Explorer de Hoodi
+          browserURL: "https://hoodi.etherscan.io",
+        },
+      },
+    ],
   },
 
   networks: {
