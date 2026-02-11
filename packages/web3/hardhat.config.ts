@@ -2,11 +2,12 @@ import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mo
 import { configVariable, defineConfig } from "hardhat/config";
 import "dotenv/config";
 
-import tasks from "lib/hardhat";
+import libTasks from "lib/hardhat";
+import localTasks from "./tasks/index.js";
 
 export default defineConfig({
   plugins: [hardhatToolboxMochaEthersPlugin],
-  tasks,
+  tasks: [...libTasks, ...localTasks],
   solidity: {
     profiles: {
       default: {
@@ -35,12 +36,14 @@ export default defineConfig({
     sepolia: {
       type: "http",
       chainType: "l1",
+      chainId: 11155111,
       url: configVariable("SEPOLIA_RPC_URL"),
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
     },
       hoodi: {
       type: "http",
       chainType: "l1",
+      chainId: 560048,
       url: configVariable("HOODI_RPC_URL"),
       accounts: [
         configVariable("HOODI_PRIVATE_KEY"),

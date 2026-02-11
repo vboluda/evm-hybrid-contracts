@@ -1,5 +1,6 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 import BasicHybridCoordinatorModule from "./BasicHybridCoordinator";
+import { ethers } from "ethers";
 
 /**
  * Ignition module for deploying ExampleConsumer
@@ -26,6 +27,14 @@ const ExampleConsumerModule = buildModule("ExampleConsumerModule", (m) => {
     bytecodeLocation,
     currentStateLocation,
   ]);
+
+   // bytes32 public constant CONSUMER_ROLE = keccak256("CONSUMER_ROLE");
+    const CONSUMER_ROLE = ethers.id("CONSUMER_ROLE");
+  
+  // Grant role on the coordinator to the consumer contract address
+  // Assumes coordinator uses OpenZeppelin AccessControl and deployer has DEFAULT_ADMIN_ROLE.
+  const coordinatorCallable = m.contractAt("BasicHybridCoordinator", coordinator);
+  m.call(coordinatorCallable, "grantRole", [CONSUMER_ROLE, consumer]);
 
   return { consumer, coordinator };
 });
