@@ -1,53 +1,64 @@
-import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
-import { configVariable, defineConfig } from "hardhat/config";
+// hardhat.config.ts (Hardhat v2)
+
+import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
+import type { HardhatUserConfig } from "hardhat/config";
 
-import libTasks from "lib/hardhat";
-import localTasks from "./tasks/index.js";
+// In HH2, tasks are registered when their modules are imported
+//import "lib/hardhat";
+//import "./tasks";
 
-export default defineConfig({
-  plugins: [hardhatToolboxMochaEthersPlugin],
-  tasks: [...libTasks, ...localTasks],
+const {
+  SEPOLIA_RPC_URL,
+  SEPOLIA_PRIVATE_KEY,
+  HOODI_RPC_URL,
+  HOODI_PRIVATE_KEY,
+} = process.env;
+
+function requireEnv(name: string, value?: string): string {
+  if (!value || value.trim() === "") {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+const config: HardhatUserConfig = {
   solidity: {
-    profiles: {
-      default: {
-        version: "0.8.28",
-      },
-      production: {
-        version: "0.8.28",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-        },
+    version: "0.8.28",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
       },
     },
   },
+
   networks: {
-    hardhatMainnet: {
-      type: "edr-simulated",
-      chainType: "l1",
+    // HH2 local network (replaces HH3 simulated networks)
+    hardhat: {
+      chainId: 31337,
     },
-    hardhatOp: {
-      type: "edr-simulated",
-      chainType: "op",
-    },
+
     sepolia: {
-      type: "http",
-      chainType: "l1",
+      url: SEPOLIA_RPC_URL
+        ? requireEnv("SEPOLIA_RPC_URL", SEPOLIA_RPC_URL)
+        : "",
       chainId: 11155111,
-      url: configVariable("SEPOLIA_RPC_URL"),
-      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+      accounts: SEPOLIA_PRIVATE_KEY
+        ? [requireEnv("SEPOLIA_PRIVATE_KEY", SEPOLIA_PRIVATE_KEY)]
+        : [],
     },
-      hoodi: {
-      type: "http",
-      chainType: "l1",
+
+    hoodi: {
+      url: HOODI_RPC_URL
+        ? requireEnv("HOODI_RPC_URL", HOODI_RPC_URL)
+        : "",
       chainId: 560048,
-      url: configVariable("HOODI_RPC_URL"),
-      accounts: [
-        configVariable("HOODI_PRIVATE_KEY"),
-      ],
+      accounts: HOODI_PRIVATE_KEY
+        ? [requireEnv("HOODI_PRIVATE_KEY", HOODI_PRIVATE_KEY)]
+        : [],
     },
   },
-});
+};
+
+export default config;
