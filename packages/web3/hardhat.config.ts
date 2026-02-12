@@ -7,7 +7,7 @@ import "@nomicfoundation/hardhat-verify";
 
 // In HH2, tasks are registered when their modules are imported
 //import "lib/hardhat";
-//import "./tasks";
+import "./tasks";
 
 const {
   SEPOLIA_RPC_URL,
@@ -35,21 +35,17 @@ const config: HardhatUserConfig = {
   },
 
   etherscan: {
-    apiKey: {
-      hoodi: process.env.ETHERSCAN_API_KEY!,
-    },
+    apiKey: process.env.ETHERSCAN_API_KEY,
     customChains: [
       {
         network: "hoodi",
         chainId: 560048,
         urls: {
-          // Etherscan API V2 (multichain)
-          apiURL: "https://api.etherscan.io/v2/api?chainid=560048",
-          // Explorer de Hoodi
-          browserURL: "https://hoodi.etherscan.io",
-        },
-      },
-    ],
+          apiURL: "https://explorer.hoodi.xyz/api",
+          browserURL: "https://hoodi.etherscan.io/"
+        }
+      }
+    ]
   },
 
   networks: {

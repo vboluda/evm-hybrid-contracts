@@ -1,5 +1,5 @@
 {
-  "BasicHybridCoordinatorModule#BasicHybridCoordinator": "0xf4a16Cf75e910c40B22f2456cF2efB7Bb32Cedc5",
-  "ExampleConsumerModule#BasicHybridCoordinator": "0xf4a16Cf75e910c40B22f2456cF2efB7Bb32Cedc5",
-  "ExampleConsumerModule#ExampleConsumer": "0x93De2BB5093F660f671b6aEFce07565c30ceBc71"
+  "BasicHybridCoordinatorModule#BasicHybridCoordinator": "0x1ee163aa5d01F9B526230E017D85a7B615b08239",
+  "ExampleConsumerModule#BasicHybridCoordinator": "0x1ee163aa5d01F9B526230E017D85a7B615b08239",
+  "ExampleConsumerModule#ExampleConsumer": "0x58fD0c7f97403cA4114a8172f391a86d0954B6A3"
 }

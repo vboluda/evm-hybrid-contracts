@@ -10,7 +10,7 @@ import "../interfaces/IBasicHybridCoordinator.sol";
  * @dev Inherits from ResponseOffchainCallConsumerBase to automatically support EIP-165
  */
 contract ExampleConsumer is ResponseOffchainCallConsumerBase {
-    
+   
     /// @notice Reference to the BasicHybridCoordinator contract
     IBasicHybridCoordinator public coordinator;
     
