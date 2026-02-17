@@ -90,8 +90,7 @@ abstract contract ResponseOffchainCallConsumerBase is IResponseOffchainCallConsu
         bytes calldata call,
         address sender
     ) internal virtual returns (bytes32 requestId){
-        IBasicHybridCoordinator coordinator = IBasicHybridCoordinator(coordinatorAddress);
-        requestId = coordinator.sendOffchainCall(
+        requestId = IBasicHybridCoordinator(coordinatorAddress).sendOffchainCall(
             sender,
             call,
             bytecodeLocation,

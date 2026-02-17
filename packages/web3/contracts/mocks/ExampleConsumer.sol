@@ -11,8 +11,6 @@ import "../interfaces/IBasicHybridCoordinator.sol";
  */
 contract ExampleConsumer is ResponseOffchainCallConsumerBase {
    
-    /// @notice Reference to the BasicHybridCoordinator contract
-    IBasicHybridCoordinator public coordinator;
     
     /// @notice Mapping to store responses by request ID
     mapping(bytes32 => ResponseData) public responses;
@@ -38,28 +36,18 @@ contract ExampleConsumer is ResponseOffchainCallConsumerBase {
         string memory _bytecodeLocation,
         string memory _currentStateLocation
     ) ResponseOffchainCallConsumerBase(_coordinator, _bytecodeLocation, _currentStateLocation) {
-        coordinator = IBasicHybridCoordinator(_coordinator);
+      //Empty
     }
     
     /**
      * @notice Sends an off-chain call request through the coordinator
      * @param call The encoded function call to execute
-     * @param bytecodeLocation IPFS location of the bytecode
-     * @param currentStateLocation IPFS location of the current state
      * @return requestId The unique identifier for this request
      */
     function requestOffchainExecution(
-        bytes calldata call,
-        string calldata bytecodeLocation,
-        string calldata currentStateLocation
+        bytes calldata call
     ) external returns (bytes32 requestId) {
-        requestId = coordinator.sendOffchainCall(
-            msg.sender,
-            call,
-            bytecodeLocation,
-            currentStateLocation
-        );
-        return requestId;
+        return sendOffchainRequest(call, msg.sender);
     }
     
     /**
