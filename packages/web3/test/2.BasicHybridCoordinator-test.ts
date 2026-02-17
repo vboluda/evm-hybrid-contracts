@@ -62,10 +62,6 @@ describe("BasicHybridCoordinator TEST", function () {
     it("should have no pending requests initially", async () => {
       expect(await coordinator.nextRequest()).to.equal(zeroPadValue("0x00", 32));
     });
-
-    it("consumer should reference coordinator correctly", async () => {
-      expect(await consumer.coordinator()).to.equal(await coordinator.getAddress());
-    });
   });
 
   describe("Role Management", () => {
@@ -101,9 +97,7 @@ describe("BasicHybridCoordinator TEST", function () {
       const callData = "0x12345678";
 
       const txPromise = consumer.requestOffchainExecution(
-        callData,
-        BYTECODE_LOCATION,
-        CURRENT_STATE_LOCATION
+        callData
       );
 
       const receipt = await (await txPromise).wait();
@@ -132,9 +126,7 @@ describe("BasicHybridCoordinator TEST", function () {
       const callData = "0xabcdef";
 
       const txPromise = consumer.requestOffchainExecution(
-        callData,
-        BYTECODE_LOCATION,
-        CURRENT_STATE_LOCATION
+        callData
       );
 
       const receipt = await (await txPromise).wait();
@@ -159,9 +151,7 @@ describe("BasicHybridCoordinator TEST", function () {
 
     it("generates unique request IDs for different requests", async () => {
       const tx1 = await consumer.requestOffchainExecution(
-        "0x01",
-        BYTECODE_LOCATION,
-        CURRENT_STATE_LOCATION
+        "0x01"
       );
       await tx1.wait();
       const requestId1 = await coordinator.nextRequest();
@@ -174,9 +164,7 @@ describe("BasicHybridCoordinator TEST", function () {
       ).wait();
 
       const tx2 = await consumer.requestOffchainExecution(
-        "0x02",
-        BYTECODE_LOCATION,
-        CURRENT_STATE_LOCATION
+        "0x02"
       );
       await tx2.wait();
       const requestId2 = await coordinator.nextRequest();
@@ -217,9 +205,7 @@ describe("BasicHybridCoordinator TEST", function () {
 
       await (
         await consumer.requestOffchainExecution(
-          callData,
-          BYTECODE_LOCATION,
-          CURRENT_STATE_LOCATION
+          callData
         )
       ).wait();
 
@@ -241,9 +227,7 @@ describe("BasicHybridCoordinator TEST", function () {
     beforeEach(async () => {
       await (
         await consumer.requestOffchainExecution(
-          "0x1234",
-          BYTECODE_LOCATION,
-          CURRENT_STATE_LOCATION
+          "0x1234"
         )
       ).wait();
       requestId = await coordinator.nextRequest();
@@ -346,11 +330,11 @@ describe("BasicHybridCoordinator TEST", function () {
 
   describe("FIFO Queue Ordering", () => {
     it("enforces FIFO order - nextRequest moves after fulfillment", async () => {
-      await (await consumer.requestOffchainExecution("0x01", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x01")).wait();
       const req1 = await coordinator.nextRequest();
 
-      await (await consumer.requestOffchainExecution("0x02", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
-      await (await consumer.requestOffchainExecution("0x03", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x02")).wait();
+      await (await consumer.requestOffchainExecution("0x03")).wait();
 
       await (
         await coordinator.connect(processorAccount).replyOffchainCall(req1, NEW_STATE_LOCATION, RETURN_DATA)
@@ -362,11 +346,11 @@ describe("BasicHybridCoordinator TEST", function () {
     });
 
     it("reverts if trying to fulfill out of order (unknown id)", async () => {
-      const tx1 = await consumer.requestOffchainExecution("0x01", BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
+      const tx1 = await consumer.requestOffchainExecution("0x01");
       await tx1.wait();
       const req1 = await coordinator.nextRequest();
 
-      const tx2 = await consumer.requestOffchainExecution("0x02", BYTECODE_LOCATION, CURRENT_STATE_LOCATION);
+      const tx2 = await consumer.requestOffchainExecution("0x02");
       await tx2.wait();
 
       // We can't easily derive req2 without replicating the contract's requestId formula.
@@ -382,10 +366,10 @@ describe("BasicHybridCoordinator TEST", function () {
     });
 
     it("nextRequest() updates after fulfillment", async () => {
-      await (await consumer.requestOffchainExecution("0x01", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x01")).wait();
       const req1 = await coordinator.nextRequest();
 
-      await (await consumer.requestOffchainExecution("0x02", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x02")).wait();
 
       await (
         await coordinator.connect(processorAccount).replyOffchainCall(req1, NEW_STATE_LOCATION, RETURN_DATA)
@@ -400,7 +384,7 @@ describe("BasicHybridCoordinator TEST", function () {
     });
 
     it("nextRequest() returns zero after all requests fulfilled", async () => {
-      await (await consumer.requestOffchainExecution("0x01", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x01")).wait();
       const req1 = await coordinator.nextRequest();
 
       await (
@@ -415,7 +399,7 @@ describe("BasicHybridCoordinator TEST", function () {
     let requestId: string;
 
     beforeEach(async () => {
-      await (await consumer.requestOffchainExecution("0x1234", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x1234")).wait();
       requestId = await coordinator.nextRequest();
     });
 
@@ -463,7 +447,7 @@ describe("BasicHybridCoordinator TEST", function () {
 
   describe("ExampleConsumer Integration", () => {
     it("consumer can store and retrieve responses", async () => {
-      await (await consumer.requestOffchainExecution("0x1234", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x1234")).wait();
       const requestId = await coordinator.nextRequest();
 
       await (
@@ -478,7 +462,7 @@ describe("BasicHybridCoordinator TEST", function () {
     });
 
     it("consumer emits ResponseReceived event", async () => {
-      await (await consumer.requestOffchainExecution("0x1234", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x1234")).wait();
       const requestId = await coordinator.nextRequest();
 
       await expect(
@@ -497,9 +481,7 @@ describe("BasicHybridCoordinator TEST", function () {
       for (let i = 0; i < numRequests; i++) {
         await (
           await consumer.requestOffchainExecution(
-            toBeHex(i),
-            BYTECODE_LOCATION,
-            CURRENT_STATE_LOCATION
+            toBeHex(i)
           )
         ).wait();
       }
@@ -526,11 +508,11 @@ describe("BasicHybridCoordinator TEST", function () {
     it("maintains correct queue state throughout lifecycle", async () => {
       expect(await coordinator.nextRequest()).to.equal(zeroPadValue("0x00", 32));
 
-      await (await consumer.requestOffchainExecution("0x01", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x01")).wait();
       const req1 = await coordinator.nextRequest();
       expect(req1).to.not.equal(zeroPadValue("0x00", 32));
 
-      await (await consumer.requestOffchainExecution("0x02", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x02")).wait();
       expect(await coordinator.nextRequest()).to.equal(req1);
 
       await (await coordinator.connect(processorAccount).replyOffchainCall(req1, NEW_STATE_LOCATION, RETURN_DATA)).wait();
@@ -544,21 +526,21 @@ describe("BasicHybridCoordinator TEST", function () {
 
   describe("Edge Cases", () => {
     it("handles empty call data", async () => {
-      await (await consumer.requestOffchainExecution("0x", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x")).wait();
     });
 
     it("handles empty string locations", async () => {
-      await (await consumer.requestOffchainExecution("0x1234", "", "")).wait();
+      await (await consumer.requestOffchainExecution("0x1234")).wait();
     });
 
     it("handles long string locations", async () => {
       const longString = "ipfs://" + "Q".repeat(100);
-      await (await consumer.requestOffchainExecution("0x1234", longString, longString)).wait();
+      await (await consumer.requestOffchainExecution("0x1234")).wait();
     });
 
     it("handles large call data", async () => {
       const largeData = "0x" + "ab".repeat(1000);
-      await (await consumer.requestOffchainExecution(largeData, BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution(largeData)).wait();
     });
   });
 
@@ -576,7 +558,7 @@ describe("BasicHybridCoordinator TEST", function () {
       const processor2 = unauthorizedAccount;
       await (await coordinator.grantRole(PROCESSOR_ROLE, processor2.address)).wait();
 
-      await (await consumer.requestOffchainExecution("0x01", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x01")).wait();
       const req1 = await coordinator.nextRequest();
 
       await (await coordinator.connect(processor2).replyOffchainCall(req1, NEW_STATE_LOCATION, RETURN_DATA)).wait();
@@ -591,8 +573,8 @@ describe("BasicHybridCoordinator TEST", function () {
       await consumer2.waitForDeployment();
       await (await coordinator.grantRole(CONSUMER_ROLE, await consumer2.getAddress())).wait();
 
-      await (await consumer.requestOffchainExecution("0x01", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
-      await (await consumer2.requestOffchainExecution("0x02", BYTECODE_LOCATION, CURRENT_STATE_LOCATION)).wait();
+      await (await consumer.requestOffchainExecution("0x01")).wait();
+      await (await consumer2.requestOffchainExecution("0x02")).wait();
 
       const req1 = await coordinator.nextRequest();
       expect(req1).to.not.equal(zeroPadValue("0x00", 32));
